@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tar Heel Story Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Andika:wght@400;700&display=swap">
+<style>
+/* Layout: a classroom reading tool. Sticky top bar; library grid -> split reader (passage left, practice right) that stacks on phones. */
+:root{
+  --paper:#F3F6FA; --card:#FFFFFF; --ink:#1E2A3B; --muted:#5A6577; --line:#D7DEE8;
+  --pencil:#F4B400; --pencil-ink:#3B2B00; --pencil-soft:#FFF4CC;
+  --sea:#17698A; --sea-soft:#E1EFF5; --sea-ink:#FFFFFF;
+  --good:#23794A; --good-soft:#E2F3E8; --bad:#B3261E; --bad-soft:#FBE6E4;
+  --hl:#FFEB9C;
+  --c-theme:#8A3FB8; --c-main:#17698A; --c-plot:#C2410C; --c-char:#23794A; --c-struct:#9A6A00;
+  --f-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --f-ui:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-read:"Andika","Atkinson Hyperlegible",Verdana,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#111722; --card:#19212E; --ink:#E7ECF4; --muted:#9CA7B8; --line:#2B3546;
+  --pencil:#F6C431; --pencil-ink:#2A1F00; --pencil-soft:#3A3115;
+  --sea:#6CC4E3; --sea-soft:#163240; --sea-ink:#0D1A22;
+  --good:#6FD49B; --good-soft:#15301F; --bad:#FF8F85; --bad-soft:#3A1C1A;
+  --hl:#5A4C14;
+  --c-theme:#C99BEA; --c-main:#6CC4E3; --c-plot:#FF9E6B; --c-char:#6FD49B; --c-struct:#F6C431;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#111722; --card:#19212E; --ink:#E7ECF4; --muted:#9CA7B8; --line:#2B3546;
+  --pencil:#F6C431; --pencil-ink:#2A1F00; --pencil-soft:#3A3115;
+  --sea:#6CC4E3; --sea-soft:#163240; --sea-ink:#0D1A22;
+  --good:#6FD49B; --good-soft:#15301F; --bad:#FF8F85; --bad-soft:#3A1C1A;
+  --hl:#5A4C14;
+  --c-theme:#C99BEA; --c-main:#6CC4E3; --c-plot:#FF9E6B; --c-char:#6FD49B; --c-struct:#F6C431;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;line-height:1.2;text-wrap:balance;margin:0}
+button,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--card);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;padding-block:10px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;background:none;border:0;padding:0}
+.brand .mark{width:36px;height:36px;border-radius:9px;background:var(--pencil);color:var(--pencil-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:18px}
+.brand b{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.2px}
+.brand small{display:block;font-size:12px;color:var(--muted);text-align:left;line-height:1.1}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{background:none;border:0;padding:8px 12px;border-radius:8px;font-weight:700;color:var(--muted)}
+.tab:hover{color:var(--ink);background:var(--paper)}
+.tab[aria-current="true"]{color:var(--ink);background:var(--pencil-soft);box-shadow:inset 0 -3px 0 var(--pencil)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--paper)}
+.seg button{border:0;background:none;padding:6px 14px;border-radius:999px;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+main{padding-block:24px 64px}
+
+/* library */
+.intro{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:center;margin-bottom:24px}
+.intro h1{font-size:clamp(28px,4.4vw,42px)}
+.intro p{color:var(--muted);max-width:60ch;margin:.6em 0 0}
+.mountain{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.mountain svg{width:100%;height:auto;display:block}
+.filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:18px}
+.filters .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--card);padding:5px 12px;border-radius:999px;font-weight:700;font-size:14px;color:var(--muted)}
+.chip[aria-pressed="true"]{border-color:currentColor;background:var(--paper)}
+.k-Theme{color:var(--c-theme)} .k-Main{color:var(--c-main)} .k-Plot{color:var(--c-plot)} .k-Character{color:var(--c-char)} .k-Structure{color:var(--c-struct)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.pcard{display:flex;flex-direction:column;gap:10px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;transition:transform .15s,border-color .15s}
+.pcard:hover{transform:translateY(-2px);border-color:var(--sea)}
+.pcard .meta{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);font-weight:700}
+.gr{background:var(--pencil);color:var(--pencil-ink);border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700}
+.pcard h3{font-size:22px}
+.pcard p{margin:0;color:var(--muted);font-size:15px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.tag{font-size:12px;font-weight:700;border:1.5px solid currentColor;border-radius:999px;padding:1px 8px}
+.score{font-size:13px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.score.done{color:var(--good)}
+.pair{font-size:13px;color:var(--sea);font-weight:700}
+
+/* reader */
+.reader{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;align-items:start}
+.back{background:none;border:0;color:var(--sea);font-weight:700;padding:0;margin-bottom:12px}
+.article{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px 26px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);max-height:calc(100vh - 100px);overflow:auto}
+.article .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);font-weight:700;margin-bottom:6px}
+.article h2{font-size:30px;margin-bottom:4px}
+.byline{color:var(--muted);font-size:14px;margin:0 0 14px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.btn{border:1.5px solid var(--line);background:var(--card);padding:7px 14px;border-radius:9px;font-weight:700;font-size:14px}
+.btn:hover{border-color:var(--sea)}
+.btn.primary{background:var(--sea);border-color:var(--sea);color:var(--sea-ink)}
+.text{font-family:var(--f-read);font-size:var(--fs,19px);line-height:1.7}
+.blk{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:4px;padding:4px 6px;border-radius:8px;margin:0 -6px;transition:background .3s}
+.blk .n{font-family:var(--f-ui);font-size:12px;color:var(--muted);padding-top:.45em;text-align:right;padding-right:6px;font-variant-numeric:tabular-nums}
+.blk p{margin:0 0 .5em}
+.blk.hl{background:var(--hl)}
+.sec{font-family:var(--f-display);font-weight:600;font-size:20px;margin:18px 0 6px;color:var(--sea)}
+.dir{font-style:italic;color:var(--muted)}
+.spk{font-family:var(--f-ui);font-weight:700;letter-spacing:.06em;font-size:.8em}
+.stanza p{margin:0}
+.cast{font-family:var(--f-ui);font-size:15px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+
+.practice{display:flex;flex-direction:column;gap:16px}
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.qhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--muted)}
+.std{font-family:var(--f-ui);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:var(--ink);font-variant-numeric:tabular-nums}
+.q{font-weight:700;font-size:17px;margin:0 0 12px}
+.opts{display:grid;gap:8px}
+.opt{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;text-align:left;border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;font-size:15.5px}
+.opt:hover:not(:disabled){border-color:var(--sea);background:var(--sea-soft)}
+.opt .l{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-weight:700;font-size:13px}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.right .l{background:var(--good);border-color:var(--good);color:var(--card)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong .l{background:var(--bad);border-color:var(--bad);color:var(--card)}
+.opt:disabled{cursor:default}
+.fb{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:15px}
+.fb.good{background:var(--good-soft)} .fb.bad{background:var(--bad-soft)}
+.fb b{display:block;margin-bottom:2px}
+.ref{background:none;border:0;padding:0;color:var(--sea);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.retry{margin-top:8px}
+
+.sect-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sect-title h3{font-size:22px}
+.progress{height:10px;background:var(--paper);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-top:8px}
+.progress span{display:block;height:100%;background:var(--good);transition:width .3s}
+
+.sort{display:grid;gap:8px;margin-top:10px}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,200px);gap:10px;align-items:center;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
+.srow select{width:100%;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--card)}
+.srow.ok{border-color:var(--good);background:var(--good-soft)}
+.srow.no{border-color:var(--bad);background:var(--bad-soft)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+.legend span{font-size:12px;font-weight:700;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+textarea{width:100%;min-height:120px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--paper);font-family:var(--f-read);font-size:16px;line-height:1.6;resize:vertical}
+.check{list-style:none;padding:0;margin:10px 0;display:grid;gap:6px}
+.check label{display:flex;gap:8px;align-items:flex-start;font-size:15px}
+.check input{margin-top:4px;width:18px;height:18px;accent-color:var(--good)}
+.model{margin-top:10px;padding:12px 14px;border-left:4px solid var(--pencil);background:var(--pencil-soft);border-radius:0 10px 10px 0;font-family:var(--f-read)}
+.sub{color:var(--muted);font-size:14px;margin:4px 0 0}
+
+/* standards + guide */
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.panel h2{font-size:24px;display:flex;gap:10px;align-items:center}
+.srow2{border-top:1px solid var(--line);padding:14px 0;display:grid;gap:4px}
+.srow2:first-of-type{border-top:0}
+.srow2 .code{font-weight:700;font-variant-numeric:tabular-nums}
+.srow2 .ican{color:var(--sea);font-weight:700;font-size:15px}
+.srow2 .txt{font-size:15px;color:var(--muted)}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.links button{font-size:13px;border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:2px 8px;font-weight:700}
+.links button:hover{border-color:var(--sea)}
+.gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:14px}
+.term{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.term h3{font-size:19px;margin-bottom:4px}
+.term p{margin:0;font-size:15px}
+.term .ex{margin-top:8px;font-size:14px;color:var(--muted);font-style:italic}
+.vs{overflow-x:auto;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-display);font-weight:600;font-size:16px;background:var(--paper)}
+.note{font-size:13px;color:var(--muted);margin-top:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s}
+.toast.show{opacity:1}
+
+@media (max-width:860px){
+  .reader{grid-template-columns:minmax(0,1fr)}
+  .article{position:static;max-height:none}
+  .intro,.cols{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:480px){
+  .srow{grid-template-columns:minmax(0,1fr)}
+  .article{padding:18px 16px}
+  .brand small{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <button class="brand" id="home" type="button" aria-label="Go to the passage library">
+      <span class="mark" aria-hidden="true">TH</span>
+      <span><b>Tar Heel Story Lab</b><small>NC ELA · Grades 4 &amp; 5</small></span>
+    </button>
+    <nav class="tabs" aria-label="Sections">
+      <button class="tab" data-view="library" type="button">Passages</button>
+      <button class="tab" data-view="standards" type="button">Standards</button>
+      <button class="tab" data-view="guide" type="button">Story Elements</button>
+    </nav>
+    <div class="seg" role="group" aria-label="Grade level">
+      <button type="button" data-grade="all">All</button>
+      <button type="button" data-grade="4">Gr 4</button>
+      <button type="button" data-grade="5">Gr 5</button>
+    </div>
+  </div>
+</header>
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ---------------- DATA ---------------- */
+const SKILLS = ["Theme","Main","Plot","Character","Structure"];
+const SKILL_LABEL = {Theme:"Theme",Main:"Main Idea",Plot:"Plot",Character:"Character",Structure:"Structure"};
+
+const PASSAGES = [
+{
+ id:"saltwater", grade:4, title:"Saltwater Promise", genre:"Realistic fiction", unit:"¶",
+ blurb:"On Ocracoke Island, Ava has to choose between the Fig Festival and the sea turtle nest she promised to watch.",
+ skills:["Theme","Plot","Character"], pair:"turtles",
+ blocks:[
+ "Ava Mercer had circled Saturday on the calendar in red marker. The Ocracoke Island Fig Festival was finally here, with fig cake, music, and a sand-sculpture contest that her best friend Jaylen said they were sure to win this year.",
+ "There was just one problem. Back in June, Ava had signed up to help the turtle patrol. Her job was simple: sit by Nest 14 at sunset and watch for hatchlings. Ms. Ruiz, the volunteer leader, had told her the nest was due any day now. \"Sea turtle babies don't check our calendars,\" she had said with a smile.",
+ "On Saturday morning, Jaylen called. \"We need you at the contest by five o'clock. Our castle needs your shell towers!\"",
+ "Ava looked at her sign-up sheet. Her shift started at five-thirty. \"I'll try,\" she said, but her stomach twisted.",
+ "All afternoon, Ava argued with herself. Nobody would notice if she skipped one night. The nest had been quiet for weeks. Still, she kept hearing Ms. Ruiz's words: \"If hatchlings come out and nobody is there, they can crawl toward the lights on the road instead of the ocean.\"",
+ "At five-fifteen, Ava texted Jaylen: <i>Sorry. I made a promise.</i> Then she grabbed her red flashlight and her notebook and pedaled to the beach.",
+ "The sand was cool and empty. Ava sat beside the orange tape that marked Nest 14 and listened to the waves. Laughter and music drifted from the festival. She tried not to think about the shell towers.",
+ "Just as the sky turned purple, the sand inside the tape began to tremble. A tiny flipper poked out. Then another. Within minutes, dozens of loggerhead hatchlings were tumbling over each other like wind-up toys.",
+ "Ava's hands shook as she called Ms. Ruiz. Then she switched on her red flashlight, which turtles can't easily see, and stood between the nest and the road. The little turtles scrambled past her feet toward the shimmering water. She counted every one in her notebook: eighty-seven.",
+ "When Ms. Ruiz arrived, she knelt beside the empty nest. \"You were exactly where you needed to be,\" she said.",
+ "Later that night, Jaylen texted a photo. Their castle had won second place. Ava smiled and sent back a picture of her notebook page with 87 written in big numbers and circled twice.",
+ "<i>Can't wait to hear this story,</i> Jaylen wrote back."
+ ],
+ questions:[
+ {std:"RL.4.2",skill:"Theme",q:"Which sentence best states a theme of the story?",opts:["Sea turtles hatch in the summer.","Keeping a promise can matter more than having fun.","Contests are more fun with a best friend.","Flashlights are useful at the beach."],a:1,why:"A theme is a lesson about life, not a topic. Ava gives up the festival to keep her promise, and the story shows her choice mattered when the hatchlings needed her. \"Sea turtles\" is a topic, not a lesson.",ref:[6,9,10]},
+ {std:"RL.4.3",skill:"Character",q:"Which detail best shows that Ava feels torn about her choice?",opts:["\"Ava Mercer had circled Saturday on the calendar in red marker.\"","\"She counted every one in her notebook: eighty-seven.\"","\"'I'll try,' she said, but her stomach twisted.\"","\"The sand was cool and empty.\""],a:2,why:"Her words say \"I'll try,\" but her body reacts with a twisting stomach. Authors show feelings through a character's words, thoughts, and actions.",ref:[4]},
+ {std:"RL.4.3",skill:"Plot",q:"What is the main conflict (problem) in the story?",opts:["Ava cannot find her red flashlight.","Ava and Jaylen argue about who builds the best sand castle.","Ms. Ruiz forgets to tell Ava where the nest is.","Ava must choose between the festival and her promise to watch the nest."],a:3,why:"The problem is set up when Jaylen asks Ava to come at five and her shift starts at five-thirty. Ava spends the afternoon arguing with herself about it.",ref:[2,3,4,5]},
+ {std:"RL.4.3",skill:"Plot",q:"Which event is the climax, the most exciting turning point?",opts:["The hatchlings burst from the nest and Ava guides them to the ocean.","Jaylen calls Ava on Saturday morning.","Jaylen texts a photo of the second-place castle.","Ava signs up for the turtle patrol in June."],a:0,why:"The climax is the high point of the action, where the problem comes to a head. The hatchlings emerging is the moment Ava's choice is tested.",ref:[8,9]},
+ {std:"RL.4.1",skill:"Character",q:"Why does Ava stand between the nest and the road?",opts:["She wants to get a better photo.","She is blocking the hatchlings from crawling toward the road lights.","She is waiting for Jaylen.","She is afraid of the turtles."],a:1,why:"Ms. Ruiz warned that hatchlings can crawl toward road lights instead of the ocean. Ava uses that information to protect them. This is an inference supported by two places in the text.",ref:[5,9]},
+ {std:"RL.4.2",skill:"Theme",q:"Which is the best summary of the story?",opts:["Ava goes to the Fig Festival, where she and Jaylen win second place for a sand castle with shell towers.","Ava loves turtles. She has a red flashlight and a notebook. The sky turns purple. Jaylen texts her.","Ava skips the festival to keep her promise to watch a turtle nest. The hatchlings emerge, and she safely guides all 87 to the ocean.","Ms. Ruiz teaches volunteers about loggerhead sea turtles on Ocracoke Island."],a:2,why:"A summary tells the most important events in order and leaves out small details and opinions. Choice B lists small details, and choices A and D get the main events wrong."}
+ ],
+ activity:{title:"Plot Mountain",prompt:"Place each event on the plot mountain.",stages:["Exposition","Rising action","Climax","Falling action","Resolution"],items:[
+  ["Hatchlings pour out of the nest, and Ava guides them to the water.",2],
+  ["Ava is excited about the festival but has signed up to watch Nest 14.",0],
+  ["Jaylen texts a photo, and Ava proudly shares her count of 87.",4],
+  ["Jaylen asks Ava to meet at the contest at five o'clock.",1],
+  ["Ms. Ruiz arrives and tells Ava she was right where she needed to be.",3],
+  ["Ava texts \"Sorry\" and rides her bike to the beach.",1]]},
+ response:{prompt:"Write a theme statement for \"Saltwater Promise.\" Then support it with one detail from the text.",model:"Keeping your promises shows responsibility, even when it means giving something up. In paragraph 6, Ava texts Jaylen \"Sorry. I made a promise\" and goes to the beach instead of the festival. Because she was there, all 87 hatchlings reached the ocean safely.",check:["My theme is a full sentence about life, not one word.","My theme could apply to people outside this story.","I included a detail or quote from the text.","I named the paragraph where I found it."]}
+},
+{
+ id:"kite", grade:4, title:"Wind for Two", genre:"Realistic fiction", unit:"¶",
+ blurb:"Theo wants to win the Kitty Hawk Kite Fly on his own, but his kite keeps crashing into the dunes.",
+ skills:["Character","Theme","Plot","Main"],
+ blocks:[
+ "Every spring, the Kitty Hawk Kite Fly drew kite makers from all over the Outer Banks. This year, ten-year-old Theo Banks was determined to win the Best Homemade Kite ribbon.",
+ "He spent two weeks in the garage building a giant diamond kite out of wooden dowels and a bright green trash bag. His little sister, Rosie, kept wandering in. \"Can I help?\" she asked every day.",
+ "\"It's a big-kid project,\" Theo told her. \"You'd just mess it up.\"",
+ "On the first test day, Theo ran across the dunes while the wind tugged at the string. The kite rose, wobbled, and then spun straight into the sand. <i>Crack!</i> One of the dowels snapped.",
+ "Theo fixed the dowel with tape and tried again. The kite spun and crashed. He added a heavier frame. It crashed faster. By the third day, his kite looked like a broken umbrella, and the contest was only two days away.",
+ "That night, Theo sat on the back steps with his chin on his knees. Rosie sat down beside him holding a library book about the Wright brothers.",
+ "\"Did you know they crashed a lot too?\" she said. \"It says right here they tested gliders over and over on these same sand hills. They kept notes about what went wrong.\"",
+ "Theo didn't answer, but he looked at the book.",
+ "\"Also,\" Rosie added, \"my teacher says diamond kites need tails. Yours doesn't have one.\"",
+ "Theo opened his mouth to argue. Then he closed it. Maybe a tail was exactly what his kite was missing.",
+ "The next morning, Theo and Rosie worked together. Rosie tied strips of old T-shirts into a long, colorful tail. Theo took off the heavy frame and went back to light dowels. Together they wrote a list of every crash and what might have caused it, just like the Wright brothers.",
+ "On contest day, the wind blew steady off the ocean. Theo ran, Rosie let go, and the green kite climbed higher and higher, its rainbow tail snapping behind it. It didn't spin once.",
+ "When the judges handed out ribbons, Theo's kite won third place. He held the ribbon up and then pinned it to Rosie's shirt.",
+ "\"Half of this is yours,\" he said. \"Next year, we build it together from the start.\""
+ ],
+ questions:[
+ {std:"RL.4.3",skill:"Character",q:"How does Theo change from the beginning of the story to the end?",opts:["He goes from wanting to work alone to sharing the project and the credit with Rosie.","He goes from loving kites to deciding he never wants to fly one again.","He goes from being Rosie's helper to being her teacher.","He does not change at all."],a:0,why:"At the start Theo says \"You'd just mess it up.\" At the end he pins the ribbon on Rosie and says \"Half of this is yours.\" Compare a character's words at the beginning and end to find the change.",ref:[3,14]},
+ {std:"RL.4.3",skill:"Character",q:"Which paragraph shows the moment Theo begins to change his mind about Rosie's help?",opts:["Paragraph 2","Paragraph 5","Paragraph 10","Paragraph 12"],a:2,why:"Theo \"opened his mouth to argue. Then he closed it.\" His action shows him deciding to listen instead of arguing.",ref:[10]},
+ {std:"RL.4.2",skill:"Theme",q:"Which theme is best supported by the story?",opts:["Green trash bags make the best kites.","Little sisters always know more than big brothers.","Winning a ribbon is the most important part of a contest.","Learning from mistakes and accepting help can lead to success."],a:3,why:"Theo succeeds only after he studies his crashes, like the Wright brothers, and lets Rosie help. Choice B uses the word \"always,\" which is too broad for a theme.",ref:[7,11,12]},
+ {std:"RL.4.2",skill:"Main",q:"What is the main idea of paragraph 5?",opts:["Theo tries again and again, but his kite keeps failing.","Theo uses tape to fix a dowel.","The contest is in two days.","Umbrellas can break in the wind."],a:0,why:"Every detail in paragraph 5 (the tape, the heavier frame, the broken umbrella) supports one bigger idea: repeated failure. The main idea is what the details have in common.",ref:[5]},
+ {std:"RL.4.3",skill:"Plot",q:"Why is Rosie's library book about the Wright brothers important to the plot?",opts:["It gives Theo the idea to build an airplane instead.","It helps Theo see that even famous inventors failed and learned from their crashes.","It tells Theo the contest rules.","It shows that Rosie would rather read than fly kites."],a:1,why:"The book leads Theo to keep notes about every crash \"just like the Wright brothers,\" which helps solve his problem.",ref:[7,11]},
+ {std:"RL.4.3",skill:"Plot",q:"How does the setting help bring about the resolution?",opts:["A storm cancels the contest.","The steady wind off the ocean on contest day helps the kite fly.","The garage is too small to build the kite.","The library closes early."],a:1,why:"Setting includes weather. The steady ocean wind on contest day is part of why the rebuilt kite finally flies.",ref:[12]}
+ ],
+ activity:{title:"Plot Mountain",prompt:"Place each event on the plot mountain.",stages:["Exposition","Rising action","Climax","Falling action","Resolution"],items:[
+  ["Rosie shares the Wright brothers book and the tail idea, and Theo listens.",1],
+  ["Theo builds a kite for the Kitty Hawk Kite Fly and refuses Rosie's help.",0],
+  ["On contest day, the kite climbs high and doesn't spin once.",2],
+  ["The kite spins into the sand and a dowel snaps.",1],
+  ["Theo pins the ribbon on Rosie and plans to build with her next year.",4],
+  ["The judges award Theo's kite third place.",3]]},
+ response:{prompt:"Describe Theo using one character trait. Support it with a detail about his thoughts, words, or actions.",model:"Theo is determined. Even after his kite crashed three days in a row, he kept fixing it and trying again (paragraph 5). By the end he also becomes generous, because he pins the ribbon on Rosie and says \"Half of this is yours\" (paragraph 14).",check:["I used a trait word (determined, stubborn, generous), not a feeling from one moment.","I gave a detail from Theo's words, thoughts, or actions.","I named the paragraph.","I explained how the detail shows the trait."]}
+},
+{
+ id:"seat", grade:4, title:"The Empty Seat", genre:"Drama (play in three scenes)", unit:"Line",
+ blurb:"A short play: Jordan notices the new student eating alone and has to decide what kind of friend he wants to be.",
+ skills:["Structure","Theme","Character"],
+ cast:"JORDAN, a fourth grader · MAYA, Jordan's best friend · PRIYA, a new student · MR. OKAFOR, their teacher",
+ blocks:[
+ {h:"Scene 1"},
+ {d:"(The school cafeteria at lunchtime. JORDAN and MAYA sit at a crowded table. PRIYA stands near the trash cans holding her tray and looking around.)"},
+ {s:"MAYA",t:"(whispering) Don't look at her, Jordan. If you look, she'll come over here."},
+ {s:"JORDAN",t:"There's an empty chair right next to me."},
+ {s:"MAYA",t:"That's Carter's chair. Everybody knows that."},
+ {s:"JORDAN",t:"Carter's absent today."},
+ {s:"MAYA",t:"(rolling her eyes) It's still his chair."},
+ {d:"(PRIYA walks slowly to an empty table in the corner and sits by herself. JORDAN watches her and pushes peas around on his plate.)"},
+ {h:"Scene 2"},
+ {d:"(The classroom that afternoon. MR. OKAFOR stands at the board.)"},
+ {s:"MR. OKAFOR",t:"For our North Carolina rivers project, you will work with a partner. Jordan, you're with Priya."},
+ {d:"(JORDAN carries his chair to PRIYA's desk. She is drawing in a sketchbook and quickly closes it.)"},
+ {s:"JORDAN",t:"Is that a map? Can I see?"},
+ {s:"PRIYA",t:"(shyly opening the sketchbook) It's the Neuse River. I drew it from the atlas. I like making maps."},
+ {s:"JORDAN",t:"Whoa. You even drew the little bridges. That's amazing."},
+ {s:"PRIYA",t:"At my old school in Ohio, I sat with my cousins at lunch. Here, I don't really know anybody yet."},
+ {s:"JORDAN",t:"(quietly) Yeah. I noticed."},
+ {h:"Scene 3"},
+ {d:"(The cafeteria the next day. MAYA saves a seat for JORDAN. JORDAN picks up his tray and stops, looking from MAYA to PRIYA, who is alone again in the corner.)"},
+ {s:"MAYA",t:"Jordan! Over here!"},
+ {s:"JORDAN",t:"(taking a deep breath) I'm going to sit somewhere new today. You can come too."},
+ {d:"(JORDAN walks to the corner table. MAYA hesitates, looks at the crowded table, then picks up her tray and follows.)"},
+ {s:"JORDAN",t:"Priya, can we sit here? Maya wants to see your river map."},
+ {s:"PRIYA",t:"(smiling for the first time) Sure. Wait until you see the one I'm drawing of the Outer Banks."},
+ {d:"(The three lean over the sketchbook together as the lights fade.)"}
+ ],
+ questions:[
+ {std:"RL.4.5",skill:"Structure",q:"How can you tell \"The Empty Seat\" is a drama and not a story written in prose?",opts:["It has a problem and a solution.","It has a cast of characters, lines of dialogue after character names, and stage directions.","It has characters who are in fourth grade.","It is told by a narrator who uses \"I.\""],a:1,why:"Every story has a problem and characters. Dramas are different because of their structure: a cast list, dialogue labeled with speakers' names, scenes, and stage directions."},
+ {std:"RL.4.5",skill:"Structure",q:"What is the purpose of stage directions such as \"(smiling for the first time)\"?",opts:["They tell actors how to move or speak and describe the setting.","They tell the audience what to say.","They are lines the narrator reads out loud.","They list the lessons of the play."],a:0,why:"Stage directions are not spoken. They tell actors what to do and show readers the setting and characters' feelings.",ref:[21]},
+ {std:"RL.4.5",skill:"Structure",q:"Why does the playwright divide the play into three scenes?",opts:["To make the play shorter.","To introduce a new character in every scene.","Because each scene has a different theme.","To show a change in time or place as the events unfold."],a:3,why:"Scene 1 is the cafeteria, Scene 2 is the classroom that afternoon, and Scene 3 is the cafeteria the next day. A new scene usually means a new time or place.",ref:[1,8,16]},
+ {std:"RL.4.3",skill:"Character",q:"What does Jordan learn about Priya in Scene 2 that affects his choice in Scene 3?",opts:["She is a better artist than Maya.","She is moving back to Ohio.","She has no one to sit with at her new school.","She does not like rivers."],a:2,why:"Priya says \"Here, I don't really know anybody yet.\" Jordan's quiet answer, \"I noticed,\" connects to the lunch scene the day before.",ref:[14,15]},
+ {std:"RL.4.2",skill:"Theme",q:"Which theme does the play develop?",opts:["Best friends should always agree.","It takes courage to be kind when others are not.","Maps are the best kind of art.","New students should sit alone until they make friends."],a:1,why:"Jordan takes \"a deep breath\" before leaving his friends' table. That detail shows kindness took courage, and his choice even changes Maya's actions.",ref:[18,19]},
+ {std:"RL.4.3",skill:"Character",q:"Which stage direction shows that Jordan feels uncomfortable in Scene 1?",opts:["(PRIYA walks slowly to an empty table in the corner...)","(JORDAN watches her and pushes peas around on his plate.)","(The three lean over the sketchbook together...)","(MR. OKAFOR stands at the board.)"],a:1,why:"Pushing food around instead of eating is an action that shows Jordan is bothered by what he sees.",ref:[7]}
+ ],
+ activity:{title:"Scene Sort",prompt:"Which scene does each event happen in?",stages:["Scene 1","Scene 2","Scene 3"],items:[
+  ["Mr. Okafor assigns project partners.",1],
+  ["Maya says the empty chair belongs to Carter.",0],
+  ["Priya smiles for the first time.",2],
+  ["Jordan watches Priya sit alone but does nothing.",0],
+  ["Jordan chooses a new table, and Maya follows.",2],
+  ["Jordan learns that Priya likes making maps.",1]]},
+ response:{prompt:"Rewrite one moment from Scene 3 as prose (a story paragraph). Use a narrator instead of character names and stage directions.",model:"The next day, Maya waved from the crowded table. Jordan stopped with his tray and looked at Priya, sitting alone again in the corner. He took a deep breath. \"I'm going to sit somewhere new today,\" he said. \"You can come too.\" Maya hesitated, but then she picked up her tray and followed him.",check:["Dialogue is inside quotation marks.","I used a narrator and words like \"said\" instead of name labels.","I turned stage directions into description.","I kept the events in the same order."]}
+},
+{
+ id:"turtles", grade:4, title:"Racing to the Sea", genre:"Informational article", unit:"¶",
+ blurb:"How loggerhead hatchlings make it from a North Carolina nest to the ocean, and how people help.",
+ skills:["Main"], pair:"saltwater",
+ blocks:[
+ "Every summer, loggerhead sea turtles crawl out of the ocean onto North Carolina beaches. Each mother digs a hole in the sand with her back flippers and lays around one hundred eggs, each about the size of a ping-pong ball. Then she covers the nest and returns to the sea. She will never see her babies.",
+ "The eggs incubate in the warm sand for about two months. Amazingly, the temperature of the sand helps decide whether the hatchlings will be male or female. Warmer nests produce mostly females, while cooler nests produce mostly males.",
+ "When the hatchlings are ready, they break out of their shells using a tiny tooth-like bump called a caruncle. The babies work together, digging upward for several days. Usually they wait until the sand at the surface cools at night. Then they burst out all at once, which scientists call a \"boil.\"",
+ "Next comes the most dangerous part of their journey. Hatchlings find the ocean by crawling toward the brightest horizon. On a natural beach, that is the open sky over the water. But bright lights from houses, streets, and hotels can confuse them. Turtles that crawl the wrong way may get lost, dry out, or be caught by crabs and birds.",
+ "Because of these dangers, people along the coast work to protect nests. Volunteers mark nests with stakes and tape and watch them as hatching time gets closer. Many beach towns ask people to turn off outdoor lights at night. Visitors are also asked to fill in holes and knock down sand castles so hatchlings do not get trapped.",
+ "Even with help, the ocean is a tough place for a little turtle. Scientists estimate that only about one in a thousand hatchlings survives to become an adult. That is why every nest, and every hatchling that reaches the waves, matters."
+ ],
+ questions:[
+ {std:"RI.4.2",skill:"Main",q:"What is the main idea of the whole article?",opts:["Loggerhead hatchlings face many dangers getting to the sea, so people work to protect them.","Sea turtle eggs are the size of ping-pong balls.","Crabs and birds eat hatchlings.","Hotels should not be built on beaches."],a:0,why:"The main idea covers the whole article. The other choices are single details (B, C) or an opinion the article never states (D)."},
+ {std:"RI.4.2",skill:"Main",q:"Which detail best supports the idea that lights are dangerous for hatchlings?",opts:["\"Each mother digs a hole in the sand with her back flippers.\"","\"The eggs incubate in the warm sand for about two months.\"","\"Turtles that crawl the wrong way may get lost, dry out, or be caught by crabs and birds.\"","\"She will never see her babies.\""],a:2,why:"This sentence explains what happens when lights lead hatchlings the wrong way. It is a key detail for that idea.",ref:[4]},
+ {std:"RI.4.2",skill:"Main",q:"What is the main idea of paragraph 5?",opts:["Sand castles are fun to build.","Volunteers and beach towns take steps to protect turtle nests.","Stakes and tape are expensive.","Turtles hatch in the summer."],a:1,why:"Marking nests, turning off lights, and filling holes are all ways people protect nests. That is what the details in paragraph 5 have in common.",ref:[5]},
+ {std:"RI.4.2",skill:"Main",q:"Which is the best summary of paragraphs 1–3?",opts:["Turtles have a caruncle. Sand can be warm or cool. Mothers have flippers.","I think sea turtles are the most amazing animals on the beach.","Loggerheads swim in the ocean all year.","A mother loggerhead lays about 100 eggs in the sand. After about two months, the hatchlings dig upward together and burst out at night."],a:3,why:"A good summary keeps the most important ideas in order and leaves out opinions (B) and scattered small facts (A).",ref:[1,2,3]},
+ {std:"RI.4.1",skill:"Main",q:"Paired texts: Which fact from this article explains why Ava used a red flashlight and stood between the nest and the road in \"Saltwater Promise\"?",opts:["Warmer nests produce mostly females.","Hatchlings crawl toward the brightest horizon, so bright lights can confuse them.","A mother lays about one hundred eggs.","Only about one in a thousand hatchlings survives."],a:1,why:"Reading the article helps explain the character's actions in the story. Ava blocked the road lights because lights can lead hatchlings the wrong way.",ref:[4]}
+ ],
+ activity:{title:"Detail Sort",prompt:"Which main idea does each key detail support?",stages:["How hatchlings are born","Dangers on the way to the sea","How people help"],items:[
+  ["Bright lights can lead hatchlings the wrong way.",1],
+  ["Mothers lay about 100 eggs in the sand.",0],
+  ["Volunteers mark nests with stakes and tape.",2],
+  ["Crabs and birds catch lost hatchlings.",1],
+  ["Hatchlings use a caruncle to break their shells.",0],
+  ["Beach towns ask people to turn off outdoor lights.",2]]},
+ response:{prompt:"Summarize the article in 2–3 sentences. Start with the main idea.",model:"Loggerhead sea turtle hatchlings face many dangers as they travel from their nests to the ocean. After about two months in the sand, they dig out together at night and crawl toward the brightest horizon, but artificial lights can confuse them. Volunteers and beach towns help by marking nests and turning off lights.",check:["My first sentence states the main idea.","I included only the most important details.","I used my own words.","I left out my opinions."]}
+},
+{
+ id:"coverlet", grade:5, title:"The Coverlet", genre:"Realistic fiction in three parts", unit:"¶",
+ blurb:"Spending the summer near Boone, Lena helps Grandma Bett weave a Whig Rose coverlet, until one mistake makes her want to quit.",
+ skills:["Structure","Theme","Character"], pair:"weaving",
+ blocks:[
+ {h:"Part 1: The Loom"},
+ "Lena had been at Grandma Bett's farmhouse outside Boone for exactly three days, and she had already counted every place her phone got a signal. There were two: the top step of the porch and the far corner of the garden, if she stood on one foot.",
+ "\"You'll get more out of these mountains if you look up,\" Grandma Bett said, setting down a basket of yarn. \"Come here. I could use your hands.\"",
+ "In the back room stood a wooden loom as big as a car. Stretched across it was half of a blanket woven in deep red and cream. The pattern looked like rows of roses blooming inside little squares.",
+ "\"It's a coverlet,\" Grandma Bett explained. \"This pattern is called Whig Rose. My grandmother wove one just like it. I'm making this one for your mother's birthday, but my fingers are slower than they used to be.\"",
+ "Lena shrugged. Weaving looked easier than standing on one foot in a garden.",
+ {h:"Part 2: The Mistake"},
+ "It was not easier. Every row meant pressing the right wooden pedals, called treadles, in the right order, then passing the shuttle through and pulling the beater toward her. Grandma Bett had written the order on a long strip of paper: 1-2, 2-3, 3-4, 4-1.",
+ "For a week, Lena wove a few inches each afternoon. Slowly, the roses began to bloom under her hands. She even forgot to check her phone.",
+ "Then, on Friday, she stepped back and gasped. Halfway up her section, one rose leaned sideways like a wilted flower. Somewhere she had skipped a step on the paper strip.",
+ "\"It's ruined,\" Lena said, her face hot. \"I'm done. I'm not good at this.\"",
+ "Grandma Bett didn't argue. Instead, she opened a cedar chest and lifted out an old coverlet, soft and faded. She pointed to one corner. There, among perfect roses, one rose leaned sideways.",
+ "\"My grandmother made that mistake in 1898,\" she said. \"She told me she unwove it twice and got it wrong both times, so she decided it was her signature. Mistakes happen to every weaver, Lena. What matters is what you do next.\"",
+ {h:"Part 3: The Signature"},
+ "The next morning, Lena sat down at the loom before breakfast. She carefully unwove her rows one by one until she reached the leaning rose. It took two whole afternoons. This time she read the paper strip out loud for every row, and her roses stood straight.",
+ "When the coverlet was finished, Grandma Bett showed Lena how to weave her initials, L.M., into a corner border. \"Every coverlet should tell who made it,\" she said.",
+ "On the drive home, Lena held the folded coverlet on her lap. Her phone buzzed with a dozen messages, but she didn't look at them. She was thinking about the next pattern she wanted to learn, and about the faded coverlet in the cedar chest, where a sideways rose had waited more than a hundred years to teach her something."
+ ],
+ questions:[
+ {std:"RL.5.5",skill:"Structure",q:"How does Part 2 fit into the overall structure of the story?",opts:["It introduces Lena, her grandmother, and the setting.","It presents the main challenge, Lena's mistake, and the turning point when she sees the old coverlet.","It shows how the problem is finally solved and what Lena learned.","It gives background facts about how looms are built."],a:1,why:"Part 1 sets up characters and setting. Part 2 brings the conflict and the turning point. Part 3 resolves it. Each part has a job in the whole story.",ref:[8,9,10,11]},
+ {std:"RL.5.5",skill:"Structure",q:"Why is Part 3 titled \"The Signature\"?",opts:["Lena signs a birthday card for her mother.","Grandma Bett signs her name on the paper strip.","Lena weaves her initials into the coverlet, and the title connects back to the great-great-grandmother's \"signature\" mistake.","Lena's phone shows a signature on a message."],a:2,why:"The title links two parts of the story: the 1898 mistake that became a \"signature\" in Part 2 and Lena weaving her initials in Part 3.",ref:[11,13]},
+ {std:"RL.5.2",skill:"Theme",q:"How does Lena's response to her challenge help develop the theme?",opts:["She quits weaving, showing that some skills are too hard to learn.","She asks her grandmother to fix the mistake, showing that adults solve problems.","She hides the mistake so no one will notice it.","She patiently unweaves and fixes her rows, showing that what matters is how you respond to mistakes."],a:3,why:"In grade 5, look at how a character responds to a challenge to find the theme. Lena's patient fix matches Grandma Bett's words: \"What matters is what you do next.\"",ref:[11,12]},
+ {std:"RL.5.3",skill:"Character",q:"How are Lena's and her great-great-grandmother's responses to their mistakes different?",opts:["Lena fixes her mistake, while her great-great-grandmother keeps hers as a \"signature.\"","Lena keeps her mistake, while her great-great-grandmother fixes hers.","Both of them quit weaving.","Neither of them notices the mistake."],a:0,why:"Both weavers made the same leaning-rose mistake, but they responded differently. Comparing characters means noticing both likenesses and differences.",ref:[11,12]},
+ {std:"RL.5.1",skill:"Character",q:"Which quotation best supports the inference that Lena's feelings about the mountains have changed?",opts:["\"There were two: the top step of the porch and the far corner of the garden.\"","\"Her phone buzzed with a dozen messages, but she didn't look at them.\"","\"In the back room stood a wooden loom as big as a car.\"","\"Lena shrugged.\""],a:1,why:"At the start Lena hunts for phone signal. At the end she ignores a dozen messages because she is thinking about weaving. Quote accurately to support an inference.",ref:[1,14]},
+ {std:"RL.5.3",skill:"Character",q:"Compare Lena at the beginning (Part 1) and the end (Part 3). Which statement is most accurate?",opts:["At first she is an expert weaver; at the end she forgets how.","At first she is excited about the farm; at the end she is bored.","At first she is focused on her phone and unsure about weaving; at the end she is patient and eager to learn more.","She feels the same way the whole time."],a:2,why:"Paragraph 1 shows her checking for signal, and paragraph 14 shows her planning \"the next pattern she wanted to learn.\"",ref:[1,5,14]}
+ ],
+ activity:{title:"Part Sort",prompt:"Which part of the story does each event belong to? Part 1 sets up the story, Part 2 brings the challenge, Part 3 resolves it.",stages:["Part 1: The Loom","Part 2: The Mistake","Part 3: The Signature"],items:[
+  ["Grandma Bett shows the coverlet from 1898.",1],
+  ["Lena finds only two places with phone signal.",0],
+  ["Lena unweaves her rows and reads the strip aloud.",2],
+  ["Grandma Bett explains the Whig Rose pattern.",0],
+  ["Lena discovers a sideways rose in her weaving.",1],
+  ["Lena ignores her phone on the drive home.",2]]},
+ response:{prompt:"Explain how Parts 1, 2, and 3 work together to build the story's theme.",model:"Part 1 introduces Lena, who cares more about her phone than the loom. Part 2 brings the challenge: she makes a mistake and wants to quit until Grandma Bett shows her the 1898 coverlet. Part 3 shows Lena patiently fixing her work and weaving her initials, which develops the theme that mistakes are part of learning and what matters is how you respond.",check:["I described the job of each part.","I stated the theme in a full sentence.","I explained how the parts connect, using words like \"because\" or \"which leads to.\"","I used a detail from each part."]}
+},
+{
+ id:"hill", grade:5, title:"The Final Hill", genre:"Realistic fiction", unit:"¶",
+ blurb:"Two teammates reach the steepest part of the regional cross-country meet just as another runner falls.",
+ skills:["Character","Theme","Plot"],
+ blocks:[
+ "Marisol Vega had a plan for the regional cross-country meet, and she had written it on an index card taped to her bedroom mirror: <i>Start fast. Hold position. Pass everyone on the final hill.</i>",
+ "Her teammate Dee Johnson didn't have a card. Dee hummed at the starting line, waved to her grandmother in the crowd, and told a nervous runner from another school that her shoelace was untied.",
+ "\"Focus,\" Marisol muttered. \"This isn't a party.\" The top fifteen runners would qualify for the state meet, and Marisol intended to be one of them.",
+ "The starting horn blared. Marisol shot forward exactly as planned. For two miles, the course wound through pine woods and over a wooden footbridge. Marisol stayed in twelfth place, saving her energy. Dee ran just behind her, matching her stride.",
+ "Then came the final hill, steep and covered in loose gravel. Marisol leaned forward and began to pass runners. Eleventh. Tenth. Ninth.",
+ "Halfway up, a girl in a blue jersey slipped on the gravel and went down hard. She grabbed her ankle and cried out.",
+ "Marisol glanced at her, then looked away. <i>A course volunteer will help her,</i> she told herself. <i>That's their job.</i> She pushed harder and passed two more runners.",
+ "Dee stopped.",
+ "She knelt beside the girl in blue, the same runner whose shoelace had been untied. \"Don't stand on it,\" Dee said. \"I'll get help.\" She waved both arms and shouted until a volunteer came running down the hill. Only then did Dee start running again.",
+ "Marisol crossed the finish line in seventh place. She bent over, gasping, and grinned. State meet!",
+ "Dee finished in twenty-third place. She would not be going to state.",
+ "At the finish area, the girl in blue limped over on crutches with her coach. \"Thank you,\" she said to Dee. \"Nobody else even slowed down.\"",
+ "Marisol's grin faded. She had been \"nobody else.\"",
+ "On the bus ride home, Marisol sat next to Dee. \"You could have made state,\" she said. \"Why did you stop?\"",
+ "Dee shrugged and looked out the window. \"There'll be other races,\" she said. \"There was only one of her.\"",
+ "That night, Marisol took the index card off her mirror. She turned it over and, under her race plan, wrote one more line: <i>Remember who is running beside you.</i>"
+ ],
+ questions:[
+ {std:"RL.5.3",skill:"Character",q:"How do Marisol and Dee respond differently to the runner who falls?",opts:["Marisol stops to help, while Dee keeps running.","Both girls stop to help the runner.","Marisol keeps running and expects someone else to help, while Dee stops and gets help.","Neither girl notices the runner."],a:2,why:"Marisol thinks \"A course volunteer will help her\" and pushes on. Dee kneels and shouts until a volunteer comes.",ref:[7,8,9]},
+ {std:"RL.5.3",skill:"Character",q:"Which detail from before the race shows a difference between the two girls?",opts:["Marisol has a written plan and says \"Focus,\" while Dee hums, waves, and helps another runner.","Both girls want to qualify for the state meet.","Both girls run on the same team.","Marisol and Dee both run through the pine woods."],a:0,why:"Choices B, C, and D are similarities. To contrast, find a detail where the characters act differently.",ref:[1,2,3]},
+ {std:"RL.5.2",skill:"Theme",q:"Which theme is best developed by how the characters respond to the challenge on the final hill?",opts:["Winning is the only thing that matters in sports.","Runners should always have a written plan.","Hills are the hardest part of a race.","Caring for others can matter more than winning."],a:3,why:"Dee gives up her chance at state to help someone, and Marisol learns from it. The theme comes from how both characters respond to the same challenge.",ref:[9,15,16]},
+ {std:"RL.5.3",skill:"Plot",q:"Why does Marisol's grin fade in paragraph 13?",opts:["She feels guilty when she realizes she ignored someone who needed help.","She realizes she did not qualify for state.","She is tired from running up the hill.","She is angry that Dee finished behind her."],a:0,why:"The injured runner says \"Nobody else even slowed down,\" and Marisol realizes she was one of those people. This moment turns the story toward its resolution.",ref:[12,13]},
+ {std:"RL.5.3",skill:"Character",q:"What does the new line on Marisol's index card show about how she has changed?",opts:["She plans to run slower in every race.","She now thinks about the people around her, not only about winning.","She wants Dee to write her race plans.","She has decided to quit cross-country."],a:1,why:"\"Remember who is running beside you\" is added under her old plan. She keeps her goals but adds caring about others.",ref:[16]},
+ {std:"RL.5.1",skill:"Character",q:"Which quotation best shows what Dee values?",opts:["\"This isn't a party.\"","\"State meet!\"","\"There'll be other races. There was only one of her.\"","\"Start fast. Hold position.\""],a:2,why:"Dee's own words explain that a person matters more to her than a race. The other quotations are Marisol's words or thoughts.",ref:[15]}
+ ],
+ activity:{title:"Character Venn Sort",prompt:"Sort each detail: does it describe only Marisol, both girls, or only Dee?",stages:["Only Marisol","Both","Only Dee"],items:[
+  ["Writes a race plan on an index card",0],
+  ["Stops to help an injured runner",2],
+  ["Runs for the same team",1],
+  ["Qualifies for the state meet",0],
+  ["Waves to her grandmother at the start",2],
+  ["Runs through the pine woods and over the footbridge",1],
+  ["Changes her thinking by the end of the story",0]]},
+ response:{prompt:"Compare and contrast Marisol and Dee. Write one way they are alike and one way they are different, with text evidence.",model:"Marisol and Dee are alike because they are strong runners on the same team who both reach the final hill near the front. They are different in how they respond to the fallen runner. Marisol tells herself \"A course volunteer will help her\" and keeps running (paragraph 7), but Dee kneels beside the girl and shouts until help comes (paragraph 9).",check:["I named one similarity.","I named one difference.","I used signal words like \"both,\" \"but,\" or \"while.\"","I included evidence with a paragraph number."]}
+},
+{
+ id:"hurricane", grade:5, title:"Hurricane Night", genre:"Poem (free verse, six stanzas)", unit:"Stanza",
+ blurb:"A poem about one night without power in eastern North Carolina, and what the speaker found the next morning.",
+ skills:["Structure","Theme"],
+ blocks:[
+ {st:["The wind came in at suppertime,","a freight train with no tracks,","rattling every window","like it wanted to come in."]},
+ {st:["At nine, the lights blinked out.","The fridge stopped humming.","My little brother found my hand","in the dark and didn't let go."]},
+ {st:["So we built a fort of blankets,","and Dad dealt cards by flashlight.","Mom laughed at her own bad jokes","until the thunder had to wait its turn."]},
+ {st:["By morning, the sky was washed and blue.","Oak branches lay across the road","like giants had dropped their walking sticks,","and our street was a river of leaves."]},
+ {st:["Then the doors opened, one by one.","Mr. Pate brought his chainsaw,","the Lowery twins brought rakes,","and someone brought a cooler of melting ice cream."]},
+ {st:["The storm took our power for three days.","It took the old pecan tree, too.","But it gave me every neighbor's name,","and I'm still keeping those."]}
+ ],
+ questions:[
+ {std:"RL.5.2",skill:"Theme",q:"In stanza 6, how does the speaker reflect on the storm?",opts:["The speaker is only angry about losing power.","The speaker realizes the storm took things away but also brought the neighborhood together.","The speaker wishes there would be another storm soon.","The speaker plans to move away."],a:1,why:"\"It took... But it gave me every neighbor's name.\" The word \"But\" signals the speaker's reflection: something good came from something hard.",ref:[6]},
+ {std:"RL.5.2",skill:"Theme",q:"Which theme best fits the poem?",opts:["Hard times can bring people closer together.","Storms are always exciting.","Pecan trees are hard to replace.","Children should be afraid of thunder."],a:0,why:"The family grows close in the dark (stanza 3), and the neighbors come together the next morning (stanza 5).",ref:[3,5,6]},
+ {std:"RL.5.5",skill:"Structure",q:"How do stanzas 1–3 and stanzas 4–6 fit together to build the poem's structure?",opts:["Both halves describe only the wind.","Stanzas 1–3 take place in a different town.","Stanzas 4–6 repeat stanzas 1–3 word for word.","Stanzas 1–3 show the scary night inside the house; stanzas 4–6 show the morning after and what the speaker learned."],a:3,why:"The poem moves in time from night to morning. \"By morning\" at the start of stanza 4 signals the shift.",ref:[4]},
+ {std:"RL.5.4",skill:"Structure",q:"In stanza 1, the wind is called \"a freight train with no tracks.\" What does this metaphor suggest?",opts:["The wind is loud, powerful, and unstoppable.","The family lives near a train station.","The wind is quiet and gentle.","The storm will end quickly."],a:0,why:"A freight train is huge and loud. \"No tracks\" means nothing guides or stops it. Metaphors compare two things without using \"like\" or \"as.\"",ref:[1]},
+ {std:"RL.5.5",skill:"Structure",q:"What is the job of stanza 3 in the poem?",opts:["It describes the damage outside.","It names the neighbors who help.","It shows a turning point where the family turns fear into comfort and fun.","It explains how hurricanes form."],a:2,why:"Stanza 3 begins with \"So,\" showing the family's response to the dark. Laughter makes \"the thunder... wait its turn.\" The mood shifts here.",ref:[3]},
+ {std:"RL.5.1",skill:"Character",q:"What do the lines \"My little brother found my hand / in the dark and didn't let go\" show?",opts:["The brother is scared and takes comfort from the speaker.","The brother is playing a game.","The speaker is angry at the brother.","The brother wants to go outside."],a:0,why:"Holding on in the dark and not letting go are actions that show fear and a need for comfort.",ref:[2]}
+ ],
+ activity:{title:"Stanza Jobs",prompt:"What job does each stanza do in the poem's structure?",stages:["Builds the danger","Turning point","Shows the aftermath","Speaker's reflection"],items:[
+  ["Stanza 3: a blanket fort and cards by flashlight",1],
+  ["Stanza 1: the wind rattles the windows",0],
+  ["Stanza 6: what the storm took and what it gave",3],
+  ["Stanza 4: branches and leaves cover the street",2],
+  ["Stanza 2: the power goes out",0],
+  ["Stanza 5: neighbors arrive with tools and treats",2]]},
+ response:{prompt:"What does the speaker mean by \"it gave me every neighbor's name, / and I'm still keeping those\"? Explain how these lines connect to the theme.",model:"The speaker means that the storm helped them meet their neighbors when everyone came out to help clean up. The power and the pecan tree were lost, but the friendships are something the speaker keeps. These lines show the theme that hard times can bring people closer together.",check:["I explained the lines in my own words.","I stated the theme.","I used a detail from another stanza.","I explained what \"keeping\" means here."]}
+},
+{
+ id:"weaving", grade:5, title:"Coverlets of the Mountains", genre:"Informational article", unit:"¶",
+ blurb:"How Appalachian weavers made coverlets, shared their patterns, and kept the craft alive in western North Carolina.",
+ skills:["Main"], pair:"coverlet",
+ blocks:[
+ "In the 1800s, families in the Southern Appalachian Mountains needed warm bedding for long, cold winters. Many families raised sheep for wool and grew cotton or flax. At home, women and girls spun the fibers into thread and wove them on large wooden looms. One of the most important things they made was the coverlet, a heavy woven bedcover.",
+ "Coverlets were useful, but they were also works of art. Most were woven in a style called overshot, in which colored wool threads \"shoot over\" a plain cotton background to create bold geometric designs. Weavers dyed their wool with plants they could find or buy. Walnut hulls made brown, and madder root made red. Indigo produced a deep blue.",
+ "Coverlet patterns were passed from one weaver to another like family recipes. The instructions, called drafts, were written as rows of numbers and marks on long strips of paper. Patterns often had colorful names such as Whig Rose, Snail's Trail, and Pine Bloom. A young weaver might learn her first pattern from her mother or grandmother and later share it with a neighbor.",
+ "By the late 1800s, factories could make blankets quickly and cheaply. Fewer families needed to weave their own, and the old skills began to disappear. Some patterns survived only because someone saved a paper draft in a trunk.",
+ "In the early 1900s, people in western North Carolina worked to keep the tradition alive. At Penland, Lucy Morgan helped local women sell their weaving, an effort that grew into the Penland School of Crafts. The John C. Campbell Folk School in Brasstown also taught traditional weaving. Today, visitors to these schools can still watch weavers press the treadles and see a Whig Rose bloom, one row at a time."
+ ],
+ questions:[
+ {std:"RI.5.2",skill:"Main",q:"Which TWO main ideas are most developed in the article?",opts:["Coverlets were both practical and artistic, and people worked to preserve the weaving tradition.","Sheep give wool, and walnut hulls make brown dye.","Factories are better than looms, and patterns have funny names.","Lucy Morgan was a weaver, and Brasstown is in North Carolina."],a:0,why:"Grade 5 readers look for two or more main ideas. Choices B and D are details, and C includes an opinion the article does not state."},
+ {std:"RI.5.2",skill:"Main",q:"Which detail best supports the idea that coverlets were works of art?",opts:["\"Many families raised sheep for wool.\"","Colored wool threads \"shoot over\" a plain background to create bold geometric designs.","\"Factories could make blankets quickly and cheaply.\"","\"Some patterns survived only because someone saved a paper draft in a trunk.\""],a:1,why:"Bold designs and chosen colors show artistry. The other details support different ideas.",ref:[2]},
+ {std:"RI.5.2",skill:"Main",q:"What is the main idea of paragraph 3?",opts:["Weavers used paper strips.","Snail's Trail is the best pattern.","Weaving patterns were shared and passed down between people.","Neighbors often argued about patterns."],a:2,why:"\"Passed from one weaver to another like family recipes\" sums up the paragraph. The paper strips and pattern names are supporting details.",ref:[3]},
+ {std:"RI.5.3",skill:"Main",q:"According to paragraph 4, why did weaving skills begin to disappear?",opts:["Factories made blankets cheaply, so fewer families needed to weave.","Sheep could no longer survive in the mountains.","Paper strips were too hard to read.","The schools at Penland closed."],a:0,why:"This is a cause-and-effect relationship. Cause: factories made cheap blankets. Effect: fewer families wove, and skills faded.",ref:[4]},
+ {std:"RI.5.1",skill:"Main",q:"Paired texts: How does this article help readers understand \"The Coverlet\"?",opts:["It explains that the story's events really happened to Lena.","It shows that Grandma Bett's paper strip is a real weaving draft and that Whig Rose is a real pattern passed down in families.","It proves that weaving is easy to learn.","It tells what happens to Lena after the story ends."],a:1,why:"The article gives real background for details in the story: drafts on paper strips, treadles, and patterns passed from grandmother to granddaughter.",ref:[3]},
+ {std:"RI.5.2",skill:"Main",q:"Which is the best summary of the article?",opts:["Coverlets are blankets. Indigo is blue. Penland is a school. Trunks hold paper.","I think everyone should learn to weave because it is fun and relaxing.","Lucy Morgan started a school in Penland, North Carolina.","Appalachian families wove coverlets that were both warm and beautiful, sharing patterns through paper drafts. When factories made weaving less common, schools in western North Carolina helped keep the tradition alive."],a:3,why:"A summary includes all the main ideas, in order, in your own words, without opinions."}
+ ],
+ activity:{title:"Main Idea Sort",prompt:"Which main idea does each key detail support?",stages:["Useful and artistic","Patterns were passed down","Saving the tradition"],items:[
+  ["Drafts were written on long paper strips.",1],
+  ["Wool kept families warm in cold winters.",0],
+  ["Lucy Morgan helped local women sell their weaving.",2],
+  ["Madder root made red dye for bold designs.",0],
+  ["A weaver might learn a pattern from her grandmother.",1],
+  ["The folk school in Brasstown taught traditional weaving.",2]]},
+ response:{prompt:"Write a summary of the article that includes at least two main ideas and one key detail for each.",model:"Coverlets were an important part of life in the Appalachian Mountains because they were both practical and beautiful. Families wove them from wool and cotton to stay warm and used plant dyes like madder root to create bold designs. Weaving patterns were shared through paper drafts, and when factories made the craft less common, schools at Penland and Brasstown helped keep it alive.",check:["I included at least two main ideas.","Each main idea has a key detail.","My summary follows the order of the article.","I used my own words and no opinions."]}
+}
+];
+
+const STANDARDS = {
+ 4:[
+  {c:"RL.4.1",t:"Refer to details and examples in a text when explaining what the text says explicitly and when drawing inferences from the text.",i:"I can use details and examples from the text to explain what it says and what I can infer."},
+  {c:"RL.4.2",t:"Determine a theme of a story, drama, or poem from details in the text; summarize the text.",i:"I can find a theme using details from the text, and I can summarize."},
+  {c:"RL.4.3",t:"Describe in depth a character, setting, or event in a story or drama, drawing on specific details in the text, such as a character's thoughts, words, or actions.",i:"I can describe a character, setting, or event in depth using their thoughts, words, and actions."},
+  {c:"RL.4.5",t:"Explain major differences between poems, drama, and prose, and refer to the structural elements of poems and drama when writing or speaking about a text.",i:"I can explain how poems, plays, and stories are different and use words like stanza, scene, and stage directions."},
+  {c:"RI.4.1",t:"Refer to details and examples in a text when explaining what the text says explicitly and when drawing inferences from the text.",i:"I can use details from an informational text to explain and infer."},
+  {c:"RI.4.2",t:"Determine the main idea of a text and explain how it is supported by key details; summarize the text.",i:"I can find the main idea, explain the key details that support it, and summarize."}
+ ],
+ 5:[
+  {c:"RL.5.1",t:"Quote accurately from a text when explaining what the text says explicitly and when drawing inferences from the text.",i:"I can quote the text accurately to support what I say and what I infer."},
+  {c:"RL.5.2",t:"Determine a theme of a story, drama, or poem from details in the text, including how characters in a story or drama respond to challenges or how the speaker in a poem reflects upon a topic; summarize the text.",i:"I can find a theme by looking at how characters respond to challenges or how a speaker reflects, and I can summarize."},
+  {c:"RL.5.3",t:"Compare and contrast two or more characters, settings, or events in a story or drama, drawing on specific details in the text.",i:"I can compare and contrast characters, settings, or events using specific details."},
+  {c:"RL.5.4",t:"Determine the meaning of words and phrases as they are used in a text, including figurative language such as metaphors and similes.",i:"I can explain what figurative language like metaphors and similes means in a text."},
+  {c:"RL.5.5",t:"Explain how a series of chapters, scenes, or stanzas fits together to provide the overall structure of a particular story, drama, or poem.",i:"I can explain how chapters, scenes, or stanzas fit together to build the whole text."},
+  {c:"RI.5.1",t:"Quote accurately from a text when explaining what the text says explicitly and when drawing inferences from the text.",i:"I can quote an informational text accurately to support my thinking."},
+  {c:"RI.5.2",t:"Determine two or more main ideas of a text and explain how they are supported by key details; summarize the text.",i:"I can find two or more main ideas, explain their key details, and summarize."},
+  {c:"RI.5.3",t:"Explain the relationships or interactions between two or more individuals, events, ideas, or concepts in a historical, scientific, or technical text based on specific information in the text.",i:"I can explain how events or ideas in an informational text are connected, such as cause and effect."}
+ ]
+};
+
+/* ---------------- STATE ---------------- */
+const S = {view:"library", grade:"all", skill:null, pid:null};
+let progress = {};
+try{ progress = JSON.parse(localStorage.getItem("thsl-progress")||"{}") || {}; }catch(e){ progress = {}; }
+try{ const g = localStorage.getItem("thsl-grade"); if(g) S.grade = g; }catch(e){}
+function save(){ try{ localStorage.setItem("thsl-progress", JSON.stringify(progress)); }catch(e){} }
+const P = id => PASSAGES.find(p=>p.id===id);
+const app = document.getElementById("app");
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+function scoreOf(p){
+  const r = progress[p.id] || {};
+  let right = 0, done = 0;
+  p.questions.forEach((q,i)=>{ if(r["q"+i]!==undefined){ done++; if(r["q"+i]===q.a) right++; } });
+  return {right, done, total:p.questions.length};
+}
+
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),1800); }
+
+/* ---------------- VIEWS ---------------- */
+function mountainSVG(labels){
+  labels = labels || ["Exposition","Rising action","Climax","Falling action","Resolution"];
+  return `<svg viewBox="0 0 440 190" role="img" aria-label="Plot mountain: exposition, rising action, climax, falling action, resolution">
+   <path d="M20 160 L95 160 L230 40 L330 130 L420 130" fill="none" stroke="var(--sea)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+   <circle cx="230" cy="40" r="9" fill="var(--pencil)" stroke="var(--ink)" stroke-width="2"/>
+   <g font-family="Atkinson Hyperlegible, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">
+    <text x="22" y="182">${labels[0]}</text>
+    <text x="110" y="112" transform="rotate(-41 110 112)">${labels[1]}</text>
+    <text x="230" y="22" text-anchor="middle">${labels[2]}</text>
+    <text x="268" y="70" transform="rotate(42 268 70)">${labels[3]}</text>
+    <text x="418" y="152" text-anchor="end">${labels[4]}</text>
+   </g></svg>`;
+}
+
+function viewLibrary(){
+  const list = PASSAGES.filter(p => (S.grade==="all" || String(p.grade)===S.grade) && (!S.skill || p.skills.includes(S.skill)));
+  const chips = SKILLS.map(k=>`<button type="button" class="chip k-${k}" data-skill="${k}" aria-pressed="${S.skill===k}">${SKILL_LABEL[k]}</button>`).join("");
+  const cards = list.map(p=>{
+    const s = scoreOf(p);
+    const pair = p.pair ? `<span class="pair">Paired with “${esc(P(p.pair).title)}”</span>` : "";
+    return `<button type="button" class="pcard" data-open="${p.id}">
+      <span class="meta"><span class="gr">Grade ${p.grade}</span>${esc(p.genre)}</span>
+      <h3>${esc(p.title)}</h3>
+      <p>${esc(p.blurb)}</p>
+      ${pair}
+      <span class="tags">${p.skills.map(k=>`<span class="tag k-${k}">${SKILL_LABEL[k]}</span>`).join("")}</span>
+      <span class="score ${s.done===s.total?"done":""}">${s.done ? `${s.right} of ${s.total} correct${s.done<s.total?` · ${s.total-s.done} left`:""}` : `${s.total} questions · not started`}</span>
+    </button>`;}).join("");
+  app.innerHTML = `
+   <section class="intro">
+     <div>
+       <h1>Read a passage. Find the theme, the main idea, the plot, and the people inside it.</h1>
+       <p>Eight original passages for North Carolina grades 4 and 5: stories, a play, a poem, and two paired articles. Every question is tied to an NC Standard Course of Study reading standard and explains the answer with a paragraph you can jump to.</p>
+     </div>
+     <figure class="mountain" style="margin:0">${mountainSVG()}</figure>
+   </section>
+   <div class="filters">
+     <span class="lbl">Practice skill</span>
+     <div class="chips">${chips}</div>
+     ${S.skill?`<button type="button" class="btn" id="clearSkill">Show all skills</button>`:""}
+   </div>
+   <div class="grid">${cards || `<p>No passages match. Try another skill or grade.</p>`}</div>`;
+}
+
+function renderBlocks(p){
+  let n = 0, html = "";
+  if(p.cast) html += `<div class="cast"><b>Characters:</b> ${esc(p.cast)}</div>`;
+  p.blocks.forEach(b=>{
+    if(typeof b === "object" && b.h){ html += `<div class="sec">${esc(b.h)}</div>`; return; }
+    n++;
+    let inner;
+    if(typeof b === "string") inner = `<p>${b}</p>`;
+    else if(b.d) inner = `<p class="dir">${esc(b.d)}</p>`;
+    else if(b.s){
+      const m = b.t.match(/^(\([^)]*\))\s*(.*)$/);
+      inner = `<p><span class="spk">${esc(b.s)}:</span> ${m?`<span class="dir">${esc(m[1])}</span> ${esc(m[2])}`:esc(b.t)}</p>`;
+    }
+    else if(b.st) inner = `<div class="stanza"><p>${b.st.map(esc).join("<br>")}</p></div>`;
+    html += `<div class="blk" id="b${n}"><span class="n">${n}</span><div>${inner}</div></div>`;
+  });
+  return html;
+}
+function plainText(p){
+  const out = [p.title+"."];
+  p.blocks.forEach(b=>{
+    if(typeof b==="string") out.push(b.replace(/<[^>]+>/g,""));
+    else if(b.h) out.push(b.h+".");
+    else if(b.d) out.push(b.d.replace(/[()]/g,""));
+    else if(b.s) out.push(b.s+". "+b.t.replace(/\([^)]*\)/g,""));
+    else if(b.st) out.push(b.st.join(" "));
+  });
+  return out.join(" ");
+}
+
+function refLinks(p, refs){
+  if(!refs || !refs.length) return "";
+  const u = p.unit==="Stanza"?"stanza":p.unit==="Line"?"line":"paragraph";
+  return ` <span>Look at ${u}${refs.length>1?"s":""} ${refs.map(r=>`<button type="button" class="ref" data-ref="${r}">${r}</button>`).join(", ")}.</span>`;
+}
+
+function questionHTML(p,q,i){
+  const r = (progress[p.id]||{})["q"+i];
+  const answered = r!==undefined;
+  const opts = q.opts.map((o,j)=>{
+    let cls = "";
+    if(answered){ if(j===q.a && r===q.a) cls="right"; else if(j===r && r!==q.a) cls="wrong"; }
+    return `<button type="button" class="opt ${cls}" data-q="${i}" data-o="${j}" ${answered?"disabled":""}><span class="l">${"ABCD"[j]}</span><span>${esc(o)}</span></button>`;
+  }).join("");
+  let fb = "";
+  if(answered){
+    const ok = r===q.a;
+    fb = `<div class="fb ${ok?"good":"bad"}"><b>${ok?"Correct.":"Not yet. Reread and try again."}</b>${ok?esc(q.why):"Hint: "+hintFor(q)}${refLinks(p,q.ref)}
+      ${ok?"":`<div class="retry"><button type="button" class="btn" data-retry="${i}">Try again</button></div>`}</div>`;
+  }
+  return `<article class="qcard" id="q${i}">
+    <div class="qhead"><span>Question ${i+1}</span><span class="std">${q.std}</span><span class="tag k-${q.skill}">${SKILL_LABEL[q.skill]}</span></div>
+    <p class="q">${esc(q.q)}</p>
+    <div class="opts">${opts}</div>${fb}</article>`;
+}
+function hintFor(q){
+  const h = {Theme:"A theme is a lesson about life that could apply to anyone. Look at what the character learns or how they respond to the problem.",
+    Main:"The main idea is what most of the details have in common. Ask: what is this mostly about?",
+    Plot:"Think about the order of events: setup, problem, turning point, and solution.",
+    Character:"Look at what the character thinks, says, and does, and how that changes.",
+    Structure:"Think about how the parts (paragraphs, scenes, stanzas, chapters) are organized and what job each one does."};
+  return h[q.skill];
+}
+
+function viewReader(){
+  const p = P(S.pid); if(!p){ S.view="library"; return render(); }
+  const s = scoreOf(p);
+  const st = (progress[p.id]||{}).sort || {};
+  const act = p.activity;
+  const sortRows = act.items.map(([t,a],j)=>{
+    const v = st["i"+j];
+    const checked = (progress[p.id]||{}).sortChecked;
+    const cls = checked && v!==undefined && v!=="" ? (Number(v)===a?"ok":"no") : "";
+    return `<div class="srow ${cls}"><span>${esc(t)}</span>
+      <select id="sort-${p.id}-${j}" data-sort="${j}" aria-label="Choose for: ${esc(t)}">
+        <option value="">Choose…</option>${act.stages.map((g,k)=>`<option value="${k}" ${String(v)===String(k)?"selected":""}>${esc(g)}</option>`).join("")}
+      </select></div>`;}).join("");
+  const draft = (progress[p.id]||{}).draft || "";
+  const ticks = (progress[p.id]||{}).ticks || {};
+  const showModel = (progress[p.id]||{}).model;
+  const pairBtn = p.pair ? `<button type="button" class="btn" data-open="${p.pair}">Read the paired text: ${esc(P(p.pair).title)}</button>` : "";
+  const isPlot = act.title==="Plot Mountain";
+  app.innerHTML = `
+   <button type="button" class="back" id="back">← All passages</button>
+   <div class="reader">
+    <section class="article" id="article" aria-label="Passage">
+      <div class="meta"><span class="gr">Grade ${p.grade}</span>${esc(p.genre)}</div>
+      <h2>${esc(p.title)}</h2>
+      <p class="byline">${p.unit==="Stanza"?"Stanzas":p.unit==="Line"?"Lines":"Paragraphs"} are numbered so you can cite evidence.</p>
+      <div class="tools">
+        ${"speechSynthesis" in window ? `<button type="button" class="btn" id="listen">Listen</button>` : ""}
+        <button type="button" class="btn" id="smaller" aria-label="Smaller text">A−</button>
+        <button type="button" class="btn" id="bigger" aria-label="Larger text">A+</button>
+        ${pairBtn}
+      </div>
+      <div class="text" id="text">${renderBlocks(p)}</div>
+    </section>
+    <section class="practice" aria-label="Practice">
+      <div class="qcard">
+        <div class="sect-title"><h3>Check your understanding</h3><span class="score ${s.done===s.total?"done":""}">${s.right} of ${s.total} correct</span></div>
+        <div class="progress" aria-hidden="true"><span style="width:${s.total?Math.round(s.done/s.total*100):0}%"></span></div>
+        <p class="sub">Choose an answer. If you miss one, reread the paragraph in the hint and try again.</p>
+      </div>
+      ${p.questions.map((q,i)=>questionHTML(p,q,i)).join("")}
+      <article class="qcard">
+        <div class="qhead"><span>Activity</span><span class="tag k-${isPlot?"Plot":p.skills[0]}">${esc(act.title)}</span></div>
+        <p class="q">${esc(act.prompt)}</p>
+        ${isPlot?`<div class="mountain" style="padding:6px">${mountainSVG()}</div>`:`<div class="legend">${act.stages.map(g=>`<span>${esc(g)}</span>`).join("")}</div>`}
+        <div class="sort">${sortRows}</div>
+        <div class="tools" style="margin:12px 0 0"><button type="button" class="btn primary" id="checkSort">Check my sort</button><button type="button" class="btn" id="resetSort">Clear</button></div>
+      </article>
+      <article class="qcard">
+        <div class="qhead"><span>Write about it</span><span class="tag k-${p.skills[0]}">Constructed response</span></div>
+        <p class="q">${esc(p.response.prompt)}</p>
+        <textarea id="resp-${p.id}" aria-label="Your response" placeholder="Type your answer here.">${esc(draft)}</textarea>
+        <p class="sub">Before you compare, check your work:</p>
+        <ul class="check">${p.response.check.map((c,j)=>`<li><label><input type="checkbox" id="tick-${p.id}-${j}" data-tick="${j}" ${ticks[j]?"checked":""}> ${esc(c)}</label></li>`).join("")}</ul>
+        <button type="button" class="btn" id="showModel">${showModel?"Hide":"Show"} a sample answer</button>
+        ${showModel?`<div class="model">${esc(p.response.model)}</div>`:""}
+      </article>
+      <div class="tools"><button type="button" class="btn" id="resetAll">Start this passage over</button>${pairBtn}</div>
+    </section>
+   </div>`;
+  const txt = document.getElementById("text");
+  try{ const fs = localStorage.getItem("thsl-fs"); if(fs) txt.style.setProperty("--fs", fs+"px"); }catch(e){}
+}
+
+function viewStandards(){
+  const grades = S.grade==="all"?[4,5]:[Number(S.grade)];
+  app.innerHTML = `
+   <section class="intro" style="grid-template-columns:minmax(0,1fr)">
+     <div><h1>NC Standard Course of Study: Reading</h1>
+     <p>The literature (RL) and informational (RI) standards this lab practices, from the 2017 NC Standard Course of Study for English Language Arts. Each one links to the passages with questions on it.</p></div>
+   </section>
+   <div class="cols" style="${grades.length===1?"grid-template-columns:minmax(0,1fr)":""}">
+   ${grades.map(g=>`<section class="panel"><h2><span class="gr">Grade ${g}</span> Reading standards</h2>
+     ${STANDARDS[g].map(s=>{
+       const ps = PASSAGES.filter(p=>p.questions.some(q=>q.std===s.c));
+       return `<div class="srow2"><span class="code">${s.c}</span><span class="ican">${esc(s.i)}</span><span class="txt">${esc(s.t)}</span>
+         <div class="links">${ps.map(p=>`<button type="button" data-open="${p.id}">${esc(p.title)}</button>`).join("")}</div></div>`;}).join("")}
+   </section>`).join("")}
+   </div>
+   <p class="note">Standards wording follows the NCDPI English Language Arts Standard Course of Study (adopted 2017). Check NCDPI for the most current documents and unpacking guides.</p>`;
+}
+
+function viewGuide(){
+  const terms = [
+   ["Theme","Plot","The lesson or message about life that a story teaches. It is a full sentence that could apply to anyone.","“Keeping a promise can matter more than having fun.”","Theme"],
+   ["Topic","","One or two words that name what a text is about. A topic is not a theme.","“Sea turtles,” “friendship,” “weaving.”","Theme"],
+   ["Main idea","","What an informational text or paragraph is mostly about. Key details support it. Grade 5 texts often have two or more.","“People work to protect sea turtle nests.”","Main"],
+   ["Summary","","A short retelling of only the most important ideas or events, in order, in your own words, with no opinions.","Beginning, problem, key events, ending.","Main"],
+   ["Exposition","","The beginning of the plot. It introduces the characters, the setting, and often the problem.","Ava is excited for the festival but has a turtle shift.","Plot"],
+   ["Conflict","","The problem a character faces. It can be with another person, with nature, or inside the character.","Ava must choose between the festival and her promise.","Plot"],
+   ["Rising action","","The events that build tension as the character tries to solve the problem.","Theo's kite crashes again and again.","Plot"],
+   ["Climax","","The turning point, where the action is most exciting and the problem comes to a head.","The hatchlings burst out of the nest.","Plot"],
+   ["Falling action & resolution","","Events after the climax that wind down, and the ending that shows how the problem is solved.","Theo pins the ribbon on Rosie.","Plot"],
+   ["Character traits","","Words that describe what a character is like most of the time. Find them in thoughts, words, and actions.","Determined, generous, stubborn, patient.","Character"],
+   ["Character change","","How a character's feelings, beliefs, or actions are different at the end than at the beginning.","Marisol adds “Remember who is running beside you.”","Character"],
+   ["Chapters, scenes, stanzas","","The building blocks of stories, plays, and poems. Each one has a job in the overall structure.","Part 1 sets up, Part 2 brings conflict, Part 3 resolves.","Structure"]
+  ];
+  app.innerHTML = `
+   <section class="intro">
+     <div><h1>Story Elements</h1>
+     <p>Words to know before you read. Teachers can project this page for a mini-lesson, then send students to a passage to practice.</p></div>
+     <figure class="mountain" style="margin:0">${mountainSVG()}</figure>
+   </section>
+   <div class="gl">${terms.map(t=>`<div class="term"><span class="tag k-${t[4]}">${SKILL_LABEL[t[4]]}</span><h3 style="margin-top:8px">${esc(t[0])}</h3><p>${esc(t[2])}</p><p class="ex">Example: ${esc(t[3])}</p></div>`).join("")}</div>
+   <div class="vs"><table>
+     <thead><tr><th></th><th>Prose (story)</th><th>Drama (play)</th><th>Poem</th></tr></thead>
+     <tbody>
+      <tr><th>Built from</th><td>Paragraphs and chapters</td><td>Scenes and acts</td><td>Lines and stanzas</td></tr>
+      <tr><th>Who tells it</th><td>A narrator</td><td>Characters’ dialogue</td><td>A speaker</td></tr>
+      <tr><th>Special parts</th><td>Description, quotation marks</td><td>Cast list, stage directions</td><td>Rhythm, rhyme, line breaks, figurative language</td></tr>
+      <tr><th>Try it</th><td><button type="button" class="ref" data-open="kite">Wind for Two</button></td><td><button type="button" class="ref" data-open="seat">The Empty Seat</button></td><td><button type="button" class="ref" data-open="hurricane">Hurricane Night</button></td></tr>
+     </tbody></table></div>
+   <div class="vs"><table>
+     <thead><tr><th></th><th>Theme</th><th>Main idea</th></tr></thead>
+     <tbody>
+      <tr><th>Found in</th><td>Literature: stories, plays, poems</td><td>Informational texts (and single paragraphs)</td></tr>
+      <tr><th>Answers</th><td>What lesson does this teach about life?</td><td>What is this text mostly about?</td></tr>
+      <tr><th>Clues</th><td>How characters respond to challenges, what they learn, how a speaker reflects</td><td>Headings, first and last sentences, what the details have in common</td></tr>
+      <tr><th>Standard</th><td>RL.4.2 · RL.5.2</td><td>RI.4.2 · RI.5.2</td></tr>
+     </tbody></table></div>`;
+}
+
+/* ---------------- RENDER + EVENTS ---------------- */
+function render(){
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-current", String(t.dataset.view===(S.view==="read"?"library":S.view))));
+  document.querySelectorAll("[data-grade]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.grade===S.grade)));
+  if(S.view!=="read") stopSpeech();
+  ({library:viewLibrary, read:viewReader, standards:viewStandards, guide:viewGuide})[S.view]();
+}
+function go(view, pid){
+  S.view=view; if(pid) S.pid=pid; render(); window.scrollTo(0,0);
+  try{ history.replaceState(null,"", view==="read"?"#"+pid:"#"+view); }catch(e){}
+}
+function stopSpeech(){ try{ speechSynthesis.cancel(); }catch(e){} const b=document.getElementById("listen"); if(b) b.textContent="Listen"; }
+
+document.addEventListener("click", e=>{
+  const t = e.target.closest("button"); if(!t) return;
+  if(t.id==="home"){ go("library"); return; }
+  if(t.dataset.view){ go(t.dataset.view); return; }
+  if(t.dataset.grade){ S.grade=t.dataset.grade; try{localStorage.setItem("thsl-grade",S.grade);}catch(e){} if(S.view==="read") S.view="library"; render(); return; }
+  if(t.dataset.skill){ S.skill = S.skill===t.dataset.skill?null:t.dataset.skill; render(); return; }
+  if(t.id==="clearSkill"){ S.skill=null; render(); return; }
+  if(t.dataset.open){ go("read", t.dataset.open); return; }
+  if(t.id==="back"){ go("library"); return; }
+  const p = P(S.pid);
+  if(t.dataset.o!==undefined){
+    const i=+t.dataset.q, o=+t.dataset.o;
+    progress[p.id]=progress[p.id]||{}; progress[p.id]["q"+i]=o; save();
+    const card=document.getElementById("q"+i); card.outerHTML=questionHTML(p,p.questions[i],i);
+    updateScore(p);
+    if(o===p.questions[i].a){ const s=scoreOf(p); if(s.done===s.total) toast(`Finished: ${s.right} of ${s.total} correct`); }
+    return;
+  }
+  if(t.dataset.retry!==undefined){ const i=+t.dataset.retry; delete progress[p.id]["q"+i]; save(); document.getElementById("q"+i).outerHTML=questionHTML(p,p.questions[i],i); updateScore(p); return; }
+  if(t.dataset.ref){ flash(+t.dataset.ref); return; }
+  if(t.id==="checkSort"){
+    progress[p.id]=progress[p.id]||{}; progress[p.id].sortChecked=true; save();
+    const st=progress[p.id].sort||{}; const n=p.activity.items.filter(([x,a],j)=>Number(st["i"+j])===a && st["i"+j]!==undefined && st["i"+j]!=="").length;
+    viewReaderKeepScroll(); toast(`${n} of ${p.activity.items.length} placed correctly`); return;
+  }
+  if(t.id==="resetSort"){ if(progress[p.id]){ progress[p.id].sort={}; progress[p.id].sortChecked=false; save(); } viewReaderKeepScroll(); return; }
+  if(t.id==="showModel"){ progress[p.id]=progress[p.id]||{}; progress[p.id].model=!progress[p.id].model; save(); viewReaderKeepScroll(); return; }
+  if(t.id==="resetAll"){ delete progress[p.id]; save(); viewReaderKeepScroll(); toast("Passage reset"); return; }
+  if(t.id==="bigger"||t.id==="smaller"){
+    const txt=document.getElementById("text"); let fs=parseFloat(getComputedStyle(txt).getPropertyValue("--fs"))||19;
+    fs=Math.max(15,Math.min(28,fs+(t.id==="bigger"?2:-2))); txt.style.setProperty("--fs",fs+"px"); try{localStorage.setItem("thsl-fs",fs);}catch(e){} return;
+  }
+  if(t.id==="listen"){
+    try{
+      if(speechSynthesis.speaking){ stopSpeech(); return; }
+      const u=new SpeechSynthesisUtterance(plainText(p)); u.rate=0.92; u.onend=()=>{const b=document.getElementById("listen"); if(b) b.textContent="Listen";};
+      speechSynthesis.speak(u); t.textContent="Stop";
+    }catch(err){ toast("Read-aloud is not available in this browser"); }
+    return;
+  }
+});
+document.addEventListener("change", e=>{
+  const p = P(S.pid); if(!p) return;
+  const el=e.target;
+  if(el.dataset.sort!==undefined){ progress[p.id]=progress[p.id]||{}; progress[p.id].sort=progress[p.id].sort||{}; progress[p.id].sort["i"+el.dataset.sort]=el.value; progress[p.id].sortChecked=false; el.closest(".srow").classList.remove("ok","no"); save(); }
+  if(el.dataset.tick!==undefined){ progress[p.id]=progress[p.id]||{}; progress[p.id].ticks=progress[p.id].ticks||{}; progress[p.id].ticks[el.dataset.tick]=el.checked; save(); }
+});
+document.addEventListener("input", e=>{
+  const p = P(S.pid); if(!p || e.target.tagName!=="TEXTAREA") return;
+  progress[p.id]=progress[p.id]||{}; progress[p.id].draft=e.target.value; save();
+});
+function viewReaderKeepScroll(){ const y=window.scrollY; const a=document.getElementById("article"); const ay=a?a.scrollTop:0; viewReader(); window.scrollTo(0,y); const a2=document.getElementById("article"); if(a2) a2.scrollTop=ay; }
+function updateScore(p){
+  const s=scoreOf(p); const head=document.querySelector(".practice .qcard");
+  if(!head) return;
+  head.querySelector(".score").textContent=`${s.right} of ${s.total} correct`;
+  head.querySelector(".score").classList.toggle("done", s.done===s.total);
+  head.querySelector(".progress span").style.width=Math.round(s.done/s.total*100)+"%";
+}
+function flash(n){
+  document.querySelectorAll(".blk.hl").forEach(b=>b.classList.remove("hl"));
+  const el=document.getElementById("b"+n); if(!el) return;
+  el.classList.add("hl");
+  const art=document.getElementById("article");
+  if(getComputedStyle(art).position==="sticky"){ art.scrollTo({top: art.scrollTop + el.getBoundingClientRect().top - art.getBoundingClientRect().top - 40, behavior:"smooth"}); }
+  else el.scrollIntoView({behavior:"smooth", block:"center"});
+  setTimeout(()=>el.classList.remove("hl"), 3500);
+}
+
+/* deep link: #standards, #guide, or a passage id */
+(function init(){
+  const h = (location.hash||"").slice(1);
+  if(h==="standards"||h==="guide") S.view=h;
+  else if(P(h)){ S.view="read"; S.pid=h; }
+  render();
+})();
+</script>
+
+</body>
+</html>
